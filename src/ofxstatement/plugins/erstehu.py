@@ -45,19 +45,16 @@ class ErsteHuParser(StatementParser):
         """Main entry point for parsers
         """
         self.statements = []
-        with open(self.filename, "r", encoding="latin2", newline='') as f:
+        with open(self.filename, "r", encoding="cp1250", newline='') as f:
             for line in csv.DictReader(fix_quotes(f), escapechar='\\'):
                 self._parse_line(line)
-
-        print(self.statements)
-        print(len(self.statements))
 
         return self.statements
 
     def _parse_line(self, item):
         sline = StatementLine()
 
-        accountid = item[u"Számlaszám"]
+        accountid = item[u"Számla neve"]
         currency = item[u"Tranzakció devizaneme"]
 
         stmt = self._find_or_create_statement(accountid, currency)
@@ -65,7 +62,12 @@ class ErsteHuParser(StatementParser):
         sline.date = datetime.strptime(item[u"Értéknap"], self.date_format)
         sline.date_user = datetime.strptime(item[u"Tranzakció dátuma"], self.date_format)
         sline.amount = atof(item[u"Tranzakció összege"])
-        sline.memo = item[u"Részletek"]
+        trtype = item[u"Tranzakció típusa"]
+        if trtype == "VÁSÁRLÁS" or "JÓVÁÍRÁS":
+            sline.payee = item[u"Részletek"].strip()
+        else:
+            sline.payee = item[u"Partner neve/Másodlagos azonosító típusa"].strip()
+            sline.memo = item[u"Részletek"].strip()
 
         sline.id = generate_transaction_id(sline)
 
@@ -78,7 +80,7 @@ class ErsteHuParser(StatementParser):
             stmt = Statement()
             stmt.bank_id = self.bank_id
             stmt.account_id = accountid
-            stmt.account_type = "CREDITLINE"
+            #stmt.account_type = "CREDITLINE"
             stmt.currency = currency
             self.statements.append(stmt)
 
